@@ -1,0 +1,60 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b0cb58eb0a54e4b49a778fa440d47aba, type: 3}
+  m_Name: Level1_Warehouse
+  m_EditorClassIdentifier: 
+  SceneName: Level1_Warehouse
+  DisplayName: Warehouse Infiltration
+  LevelImage: {fileID: 0}
+  Description: Infiltrate the enemy warehouse and recover the stolen tech. Expect resistance.
+  Objectives:
+  - Id: objective_enter_warehouse
+    DisplayText: Enter the warehouse undetected
+    IsOptional: 0
+    IsCompleted: 0
+    IsHidden: 0
+  - Id: objective_find_terminal
+    DisplayText: Find the security terminal
+    IsOptional: 0
+    IsCompleted: 0
+    IsHidden: 0
+  - Id: objective_disable_security
+    DisplayText: Disable the security system
+    IsOptional: 0
+    IsCompleted: 0
+    IsHidden: 0
+  - Id: objective_find_prototype
+    DisplayText: Locate the stolen prototype
+    IsOptional: 0
+    IsCompleted: 0
+    IsHidden: 0
+  - Id: objective_extract_prototype
+    DisplayText: Secure the prototype and escape
+    IsOptional: 0
+    IsCompleted: 0
+    IsHidden: 0
+  - Id: objective_eliminate_commander
+    DisplayText: Eliminate the enemy commander
+    IsOptional: 1
+    IsCompleted: 0
+    IsHidden: 0
+  ShowBriefing: 1
+  BriefingText: "Intel reports suggest the stolen prototype is being held in an abandoned
+    warehouse on the outskirts of the city. Your mission is to infiltrate the facility,
+    locate the prototype, and extract it safely. The warehouse is guarded by hostile
+    forces, so stealth is recommended but not required.\n\nAdditional intel suggests
+    that the enemy commander may be on site. Taking him out would deal a significant
+    blow to their operations."
+  BriefingImage: {fileID: 0}
+  AutoAdvance: 1
+  AutoAdvanceDelay: 5
+  NextLevelOverride: 

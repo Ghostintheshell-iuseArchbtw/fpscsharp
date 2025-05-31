@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c5a62d72ad9b4a94b8c1c28ae9b5c379, type: 3}
+  m_Name: HeavyRainStorm
+  m_EditorClassIdentifier: 
+  WeatherName: Heavy Rain Storm
+  WeatherIcon: {fileID: 0}
+  EnableFog: 1
+  FogMode: 2
+  FogDensity: 0.03
+  ParticleSystems:
+  - ParticleSystem: {fileID: 0}
+    EmissionRate: 1000
+  - ParticleSystem: {fileID: 0}
+    EmissionRate: 50
+  SunIntensityMultiplier: 0.4
+  AmbientIntensityMultiplier: 0.6
+  AmbientSound: {fileID: 0}
+  AmbientSoundVolume: 0.8
+  WindStrength: 3
+  WindDirection: {x: 1, y: 0, z: 0.5}
+  PrecipitationIntensity: 1
+  VisibilityRange: 35
+  MovementSpeedMultiplier: 0.8
+  WeaponAccuracyMultiplier: 0.7

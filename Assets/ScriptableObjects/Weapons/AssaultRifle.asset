@@ -1,0 +1,89 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 845d39528ce0fce44a43b3b4b72c267e, type: 3}
+  m_Name: AssaultRifle
+  m_EditorClassIdentifier: 
+  weaponName: Assault Rifle
+  weaponPrefab: {fileID: 0}
+  weaponViewModelPrefab: {fileID: 0}
+  weaponIcon: {fileID: 0}
+  weaponType: 2
+  damage: 15
+  fireRate: 0.1
+  range: 100
+  magazineSize: 30
+  reserveAmmoMax: 210
+  reloadTime: 2.2
+  isAutomatic: 1
+  usesProjectile: 0
+  projectilePrefab: {fileID: 0}
+  projectileSpeed: 20
+  projectileGravity: 1
+  projectileLifetime: 5
+  recoilPerShot: {x: 0.3, y: 1.2}
+  recoilRecoverySpeed: 4
+  recoilMaxDistance: 6
+  recoilPattern:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 1
+      outSlope: 1
+      tangentMode: 34
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 0.5
+      value: 0.5
+      inSlope: 1
+      outSlope: 1
+      tangentMode: 34
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 1
+      outSlope: 1
+      tangentMode: 34
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  baseSpread: 0.02
+  maxSpread: 0.1
+  spreadIncrease: 0.01
+  spreadRecovery: 0.05
+  movementSpreadMultiplier: 1.5
+  fireSound: {fileID: 0}
+  reloadSound: {fileID: 0}
+  emptySound: {fileID: 0}
+  muzzleFlashPrefab: {fileID: 0}
+  impactEffectPrefab: {fileID: 0}
+  idleAnimationTrigger: Idle
+  fireAnimationTrigger: Fire
+  reloadAnimationTrigger: Reload
+  drawAnimationTrigger: Draw
+  bulletsPerShot: 1
+  penetrationPower: 0.3
+  aimDownSightsSpeed: 0.2
+  aimDownSightsFOV: 40
+  aimDownSightsPosition: {x: 0, y: -0.02, z: 0.05}
+  hasAlternateFireMode: 1
+  alternateFireDescription: 3-round burst fire
+  canBeAkimbo: 0

@@ -1,0 +1,30 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Open with Unity Editor",
+            "type": "shell",
+            "command": "unity -projectPath /home/victoria/Desktop/fps",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Build Unity Project",
+            "type": "shell",
+            "command": "unity -quit -batchmode -projectPath /home/victoria/Desktop/fps -buildWindows64Player /home/victoria/Desktop/fps/Build/RealisticFPS.exe",
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": []
+        }
+    ]
+}
