@@ -157,7 +157,7 @@ namespace FPS.UI
             if (LocalizationManager.Instance == null)
                 return localizationKey;
             
-            string baseText = LocalizationManager.Instance.GetLocalizedString(localizationKey);
+            string baseText = LocalizationManager.Instance.GetText(localizationKey);
             
             if (useFormattedText && formatArguments != null && formatArguments.Length > 0)
             {
