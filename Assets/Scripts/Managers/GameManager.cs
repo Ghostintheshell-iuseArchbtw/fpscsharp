@@ -1,54 +1,119 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using System.Collections;
+using FPS.Managers;
+using FPS.UI;
 
-public class GameManager : MonoBehaviour
+namespace FPS.Managers
 {
-    public static GameManager Instance { get; private set; }
-    
-    [Header("Game State")]
-    [SerializeField] private bool isPaused = false;
-    [SerializeField] private bool isGameOver = false;
-    
-    [Header("References")]
-    [SerializeField] private UIManager uiManager;
-    [SerializeField] private PlayerHealth playerHealth;
-    
-    [Header("Respawn Settings")]
-    [SerializeField] private float respawnDelay = 3f;
-    [SerializeField] private bool useCheckpoints = true;
-    [SerializeField] private Transform[] respawnPoints;
-    [SerializeField] private Transform defaultRespawnPoint;
-    [SerializeField] private int respawnLives = 3;
-    [SerializeField] private float respawnProtectionTime = 2f;
-    private int currentLives;
-    private Transform lastCheckpoint;
-    
-    [Header("Level Settings")]
-    [SerializeField] private string mainMenuSceneName = "MainMenu";
-    [SerializeField] private string[] levelSceneNames;
-    private int currentLevelIndex = 0;
-    
-    // Game state properties
-    public bool IsPaused => isPaused;
-    public bool IsGameOver => isGameOver;
-    
-    private void Awake()
+    public class GameManager : MonoBehaviour
     {
-        // Singleton pattern
-        if (Instance == null)
+        public static GameManager Instance { get; private set; }
+        
+        [Header("Game State")]
+        [SerializeField] private bool isPaused = false;
+        [SerializeField] private bool isGameOver = false;
+        [SerializeField] private GameState currentGameState = GameState.MainMenu;
+        
+        [Header("References")]
+        [SerializeField] private UIManager uiManager;
+        [SerializeField] private PlayerHealth playerHealth;
+        
+        [Header("Respawn Settings")]
+        [SerializeField] private float respawnDelay = 3f;
+        [SerializeField] private bool useCheckpoints = true;
+        [SerializeField] private Transform[] respawnPoints;
+        [SerializeField] private Transform defaultRespawnPoint;
+        [SerializeField] private int respawnLives = 3;
+        [SerializeField] private float respawnProtectionTime = 2f;
+        private int currentLives;
+        private Transform lastCheckpoint;
+        
+        [Header("Level Settings")]
+        [SerializeField] private string mainMenuSceneName = "MainMenu";
+        [SerializeField] private string[] levelSceneNames;
+        private int currentLevelIndex = 0;
+        
+        [Header("Performance")]
+        [SerializeField] private bool enableAutoSave = true;
+        [SerializeField] private float autoSaveInterval = 300f; // 5 minutes
+        
+        // Game state properties
+        public bool IsPaused => isPaused;
+        public bool IsGameOver => isGameOver;
+        public GameState CurrentGameState => currentGameState;
+        
+        // Events
+        public System.Action<GameState> OnGameStateChanged;
+        public System.Action OnGamePaused;
+        public System.Action OnGameResumed;
+        public System.Action OnPlayerDied;
+        public System.Action OnLevelCompleted;        private void Awake()
         {
-            Instance = this;
-            DontDestroyOnLoad(gameObject);
-        }
-        else
-        {
-            Destroy(gameObject);
-            return;
+            // Singleton pattern
+            if (Instance == null)
+            {
+                Instance = this;
+                DontDestroyOnLoad(gameObject);
+                InitializeGame();
+            }
+            else
+            {
+                Destroy(gameObject);
+                return;
+            }
         }
         
-        // Find references if not set
-        if (uiManager == null)
+        private void InitializeGame()
+        {
+            // Initialize current lives
+            currentLives = respawnLives;
+            
+            // Set initial game state based on current scene
+            string currentScene = SceneManager.GetActiveScene().name;
+            if (currentScene == mainMenuSceneName)
+            {
+                SetGameState(GameState.MainMenu);
+            }
+            else
+            {
+                SetGameState(GameState.Playing);
+            }
+            
+            // Subscribe to scene events
+            SceneManager.sceneLoaded += OnSceneLoaded;
+            
+            // Start auto-save coroutine if enabled
+            if (enableAutoSave)
+            {
+                StartCoroutine(AutoSaveCoroutine());
+            }
+        }
+        
+        private void Start()
+        {
+            // Find references if not set
+            if (uiManager == null)
+            {
+                uiManager = FindObjectOfType<UIManager>();
+            }
+            
+            // Find player health if not set
+            if (playerHealth == null)
+            {
+                GameObject player = GameObject.FindGameObjectWithTag("Player");
+                if (player != null)
+                {
+                    playerHealth = player.GetComponent<PlayerHealth>();
+                }
+            }
+            
+            // Subscribe to player health events
+            if (playerHealth != null)
+            {
+                playerHealth.OnDeath.AddListener(HandlePlayerDeath);
+            }
+        }
         {
             uiManager = FindObjectOfType<UIManager>();
         }
@@ -112,221 +177,435 @@ public class GameManager : MonoBehaviour
                 break;
             }
         }
-    }
-    
-    private void Update()
-    {
-        // Handle pause input
-        if (Input.GetKeyDown(KeyCode.Escape) && !isGameOver)
+    }        private void Update()
         {
-            TogglePause();
-        }
-    }
-    
-    public void TogglePause()
-    {
-        isPaused = !isPaused;
-        
-        // Set time scale
-        Time.timeScale = isPaused ? 0f : 1f;
-        
-        // Update UI
-        if (uiManager != null)
-        {
-            if (isPaused)
+            // Handle pause input (only during gameplay)
+            if (Input.GetKeyDown(KeyCode.Escape) && currentGameState == GameState.Playing && !isGameOver)
             {
-                uiManager.ShowPauseMenu();
+                // Check if tutorial is active
+                if (TutorialSystem.Instance != null && TutorialSystem.Instance.IsTutorialActive())
+                {
+                    return; // Don't pause during tutorial
+                }
+                
+                TogglePause();
+            }
+        }
+        
+        public void SetGameState(GameState newState)
+        {
+            if (currentGameState != newState)
+            {
+                GameState previousState = currentGameState;
+                currentGameState = newState;
+                
+                OnGameStateChanged?.Invoke(newState);
+                
+                // Handle state transitions
+                HandleGameStateTransition(previousState, newState);
+            }
+        }
+        
+        private void HandleGameStateTransition(GameState from, GameState to)
+        {
+            switch (to)
+            {
+                case GameState.MainMenu:
+                    Time.timeScale = 1f;
+                    Cursor.visible = true;
+                    Cursor.lockState = CursorLockMode.None;
+                    break;
+                    
+                case GameState.Playing:
+                    Time.timeScale = 1f;
+                    Cursor.visible = false;
+                    Cursor.lockState = CursorLockMode.Locked;
+                    isPaused = false;
+                    break;
+                    
+                case GameState.Paused:
+                    Time.timeScale = 0f;
+                    Cursor.visible = true;
+                    Cursor.lockState = CursorLockMode.None;
+                    break;
+                    
+                case GameState.GameOver:
+                    Time.timeScale = 1f;
+                    Cursor.visible = true;
+                    Cursor.lockState = CursorLockMode.None;
+                    break;
+                    
+                case GameState.Loading:
+                    // Loading state is handled by SceneTransitionManager
+                    break;
+            }
+        }
+        
+        public void TogglePause()
+        {
+            if (currentGameState == GameState.Playing)
+            {
+                isPaused = true;
+                SetGameState(GameState.Paused);
+                OnGamePaused?.Invoke();
+                
+                // Update UI
+                if (uiManager != null)
+                {
+                    uiManager.ShowPauseMenu();
+                }
+            }
+            else if (currentGameState == GameState.Paused)
+            {
+                isPaused = false;
+                SetGameState(GameState.Playing);
+                OnGameResumed?.Invoke();
+                
+                // Update UI
+                if (uiManager != null)
+                {
+                    uiManager.HidePauseMenu();
+                }
+            }
+        }        private void HandlePlayerDeath()
+        {
+            isGameOver = true;
+            SetGameState(GameState.GameOver);
+            OnPlayerDied?.Invoke();
+            
+            // Decrement lives
+            currentLives--;
+            
+            // Check if player has lives remaining
+            if (currentLives > 0)
+            {
+                // Show respawn UI
+                if (uiManager != null)
+                {
+                    uiManager.ShowNotification($"Lives remaining: {currentLives}");
+                }
+                
+                // Respawn after delay
+                StartCoroutine(RespawnAfterDelay());
             }
             else
             {
-                uiManager.HidePauseMenu();
+                // Game over - no lives left
+                if (uiManager != null)
+                {
+                    uiManager.ShowGameOverScreen();
+                }
             }
         }
         
-        // Lock/unlock cursor
-        if (isPaused)
+        private IEnumerator RespawnAfterDelay()
         {
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
+            yield return new WaitForSeconds(respawnDelay);
+            RespawnPlayer();
         }
-        else
-        {
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
-        }
-    }
-    
-    private void HandlePlayerDeath()
-    {
-        // Decrement lives
-        currentLives--;
         
-        // Check if player has lives remaining
-        if (currentLives > 0)
+        public void RespawnPlayer()
         {
-            // Show respawn UI
+            if (playerHealth != null)
+            {
+                Vector3 respawnPosition = GetRespawnPosition();
+                playerHealth.Respawn(respawnPosition);
+                
+                // Grant temporary invulnerability
+                StartCoroutine(GrantRespawnProtection());
+                
+                // Reset game state
+                isGameOver = false;
+                SetGameState(GameState.Playing);
+                
+                if (uiManager != null)
+                {
+                    uiManager.ShowNotification("Respawned!");
+                }
+            }
+        }
+        
+        private Vector3 GetRespawnPosition()
+        {
+            if (useCheckpoints && lastCheckpoint != null)
+            {
+                return lastCheckpoint.position;
+            }
+            else if (defaultRespawnPoint != null)
+            {
+                return defaultRespawnPoint.position;
+            }
+            else if (respawnPoints.Length > 0)
+            {
+                return respawnPoints[0].position;
+            }
+            else
+            {
+                return Vector3.zero;
+            }
+        }
+        
+        private IEnumerator GrantRespawnProtection()
+        {
+            if (playerHealth != null)
+            {
+                playerHealth.SetInvulnerable(true);
+                yield return new WaitForSeconds(respawnProtectionTime);
+                playerHealth.SetInvulnerable(false);
+            }
+        }
+        
+        private IEnumerator AutoSaveCoroutine()
+        {
+            while (true)
+            {
+                yield return new WaitForSeconds(autoSaveInterval);
+                
+                // Only auto-save during gameplay
+                if (currentGameState == GameState.Playing && !isGameOver && SaveSystem.Instance != null)
+                {
+                    SaveSystem.Instance.SaveGame(0); // Auto-save to slot 0
+                    if (uiManager != null)
+                    {
+                        uiManager.ShowNotification("Game auto-saved");
+                    }
+                }
+            }
+        }        public void SetCheckpoint(Transform checkpoint)
+        {
+            if (checkpoint != null)
+            {
+                lastCheckpoint = checkpoint;
+                
+                if (uiManager != null)
+                {
+                    uiManager.ShowNotification("Checkpoint reached!");
+                }
+                
+                // Auto-save at checkpoint
+                if (SaveSystem.Instance != null)
+                {
+                    SaveSystem.Instance.SaveGame(0);
+                }
+            }
+        }
+        
+        public void CompleteLevel()
+        {
+            OnLevelCompleted?.Invoke();
+            
             if (uiManager != null)
             {
-                uiManager.ShowRespawnScreen(currentLives);
+                uiManager.ShowLevelCompleteScreen();
             }
             
-            // Respawn after delay
-            StartCoroutine(RespawnAfterDelay());
+            SetGameState(GameState.LevelComplete);
         }
-        else
+        
+        public void RestartLevel()
         {
-            // Game over - no lives left
-            isGameOver = true;
+            if (SceneTransitionManager.Instance != null)
+            {
+                SceneTransitionManager.Instance.ReloadCurrentScene();
+            }
+            else
+            {
+                SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+            }
+        }
+        
+        public void LoadNextLevel()
+        {
+            currentLevelIndex++;
             
-            // Show game over UI
+            if (currentLevelIndex >= levelSceneNames.Length)
+            {
+                // Game completed, return to main menu
+                LoadMainMenu();
+            }
+            else
+            {
+                if (SceneTransitionManager.Instance != null)
+                {
+                    SceneTransitionManager.Instance.LoadScene(levelSceneNames[currentLevelIndex]);
+                }
+                else
+                {
+                    SceneManager.LoadScene(levelSceneNames[currentLevelIndex]);
+                }
+            }
+        }
+        
+        public void LoadMainMenu()
+        {
+            // Reset game state
+            isGameOver = false;
+            isPaused = false;
+            currentLives = respawnLives;
+            
+            if (SceneTransitionManager.Instance != null)
+            {
+                SceneTransitionManager.Instance.LoadMainMenu();
+            }
+            else
+            {
+                SceneManager.LoadScene(mainMenuSceneName);
+            }
+        }
+        
+        public void QuitGame()
+        {
+            // Save before quitting
+            if (SaveSystem.Instance != null && currentGameState == GameState.Playing)
+            {
+                SaveSystem.Instance.SaveGame(0);
+            }
+            
+            #if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+            #else
+            Application.Quit();
+            #endif
+        }
+        
+        public void NewGame(int difficultyLevel = 0)
+        {
+            // Reset game state
+            currentLives = respawnLives;
+            currentLevelIndex = 0;
+            isGameOver = false;
+            isPaused = false;
+            lastCheckpoint = null;
+            
+            // Set difficulty (implement based on your difficulty system)
+            SetDifficulty(difficultyLevel);
+            
+            // Load first level
+            if (levelSceneNames.Length > 0)
+            {
+                if (SceneTransitionManager.Instance != null)
+                {
+                    SceneTransitionManager.Instance.LoadScene(levelSceneNames[0]);
+                }
+                else
+                {
+                    SceneManager.LoadScene(levelSceneNames[0]);
+                }
+            }
+        }
+        
+        private void SetDifficulty(int level)
+        {
+            // Implement difficulty settings
+            switch (level)
+            {
+                case 0: // Easy
+                    respawnLives = 5;
+                    break;
+                case 1: // Normal
+                    respawnLives = 3;
+                    break;
+                case 2: // Hard
+                    respawnLives = 1;
+                    break;
+            }
+            
+            currentLives = respawnLives;
+        }
+        
+        private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+        {
+            // Reset game state
+            isGameOver = false;
+            
+            // Update current level index
+            for (int i = 0; i < levelSceneNames.Length; i++)
+            {
+                if (scene.name == levelSceneNames[i])
+                {
+                    currentLevelIndex = i;
+                    break;
+                }
+            }
+            
+            // Set appropriate game state
+            if (scene.name == mainMenuSceneName)
+            {
+                SetGameState(GameState.MainMenu);
+            }
+            else
+            {
+                SetGameState(GameState.Playing);
+            }
+            
+            // Find new references in the loaded scene
+            FindSceneReferences();
+        }
+        
+        private void FindSceneReferences()
+        {
+            // Find UI Manager
+            if (uiManager == null)
+            {
+                uiManager = FindObjectOfType<UIManager>();
+            }
+            
+            // Find player health
+            if (playerHealth == null)
+            {
+                GameObject player = GameObject.FindGameObjectWithTag("Player");
+                if (player != null)
+                {
+                    playerHealth = player.GetComponent<PlayerHealth>();
+                    if (playerHealth != null)
+                    {
+                        playerHealth.OnDeath.AddListener(HandlePlayerDeath);
+                    }
+                }
+            }
+        }
+        
+        #region Public Methods
+        
+        public int GetCurrentLives()
+        {
+            return currentLives;
+        }
+        
+        public int GetCurrentLevelIndex()
+        {
+            return currentLevelIndex;
+        }
+        
+        public void AddLife()
+        {
+            currentLives++;
             if (uiManager != null)
             {
-                uiManager.ShowGameOverScreen();
-            }
-            
-            // Unlock cursor
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
-        }
-    }
-    
-    private IEnumerator RespawnAfterDelay()
-    {
-        yield return new WaitForSeconds(respawnDelay);
-        
-        if (playerHealth != null && lastCheckpoint != null)
-        {
-            // Respawn player at last checkpoint
-            playerHealth.Respawn(lastCheckpoint.position);
-            
-            // Apply temporary invulnerability
-            playerHealth.IsInvulnerable = true;
-            StartCoroutine(DisableInvulnerability(respawnProtectionTime));
-        }
-        else if (playerHealth != null && defaultRespawnPoint != null)
-        {
-            // Fallback to default respawn if no checkpoint was activated
-            playerHealth.Respawn(defaultRespawnPoint.position);
-            
-            // Apply temporary invulnerability
-            playerHealth.IsInvulnerable = true;
-            StartCoroutine(DisableInvulnerability(respawnProtectionTime));
-        }
-    }
-    
-    private IEnumerator DisableInvulnerability(float delay)
-    {
-        yield return new WaitForSeconds(delay);
-        if (playerHealth != null)
-        {
-            playerHealth.IsInvulnerable = false;
-        }
-    }
-    
-    public void SetCheckpoint(Transform checkpoint)
-    {
-        if (checkpoint != null)
-        {
-            lastCheckpoint = checkpoint;
-            
-            // Optional: Save checkpoint to player prefs or other persistence
-            if (uiManager != null)
-            {
-                uiManager.ShowNotification("Checkpoint reached!");
+                uiManager.ShowNotification($"Extra life! Lives: {currentLives}");
             }
         }
-    }
-            
-            // Hide respawn UI
-            if (uiManager != null)
-            {
-                uiManager.HideRespawnScreen();
-            }
-            
-            // Grant temporary invulnerability
-            StartCoroutine(GrantRespawnProtection());
-        }
-        else
+        
+        public void SetLives(int lives)
         {
-            // If we can't respawn properly, just restart the level
-            RestartLevel();
-        }
-    }
-    
-    private IEnumerator GrantRespawnProtection()
-    {
-        // Enable respawn protection
-        if (playerHealth != null)
-        {
-            playerHealth.IsInvulnerable = true;
+            currentLives = Mathf.Max(0, lives);
         }
         
-        yield return new WaitForSeconds(respawnProtectionTime);
+        #endregion
         
-        // Disable respawn protection
-        if (playerHealth != null)
+        private void OnDestroy()
         {
-            playerHealth.IsInvulnerable = false;
+            SceneManager.sceneLoaded -= OnSceneLoaded;
         }
     }
     
-    public void SetCheckpoint(Transform checkpoint)
+    public enum GameState
     {
-        if (checkpoint != null)
-        {
-            lastCheckpoint = checkpoint;
-            
-            // Show checkpoint notification
-            if (uiManager != null)
-            {
-                uiManager.ShowNotification("Checkpoint reached");
-            }
-        }
-    }
-    
-    public void RestartLevel()
-    {
-        // Reset game state
-        isGameOver = false;
-        
-        // Reload current scene
-        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
-    }
-    
-    public void LoadNextLevel()
-    {
-        currentLevelIndex++;
-        
-        // Check if we've completed all levels
-        if (currentLevelIndex >= levelSceneNames.Length)
-        {
-            // Game completed, return to main menu
-            LoadMainMenu();
-        }
-        else
-        {
-            // Load next level
-            SceneManager.LoadScene(levelSceneNames[currentLevelIndex]);
-        }
-    }
-    
-    public void LoadMainMenu()
-    {
-        // Reset game state
-        isGameOver = false;
-        isPaused = false;
-        Time.timeScale = 1f;
-        
-        // Load main menu scene
-        SceneManager.LoadScene(mainMenuSceneName);
-    }
-    
-    public void QuitGame()
-    {
-        #if UNITY_EDITOR
-        UnityEditor.EditorApplication.isPlaying = false;
-        #else
-        Application.Quit();
-        #endif
+        MainMenu,
+        Playing,
+        Paused,
+        GameOver,
+        LevelComplete,
+        Loading
     }
 }
