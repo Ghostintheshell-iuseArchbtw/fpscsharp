@@ -48,6 +48,9 @@ namespace FPS.UI
         [SerializeField] private Button resetButton;
         [SerializeField] private Button defaultsButton;
         
+        [Header("Localization Settings")]
+        [SerializeField] private TMP_Dropdown languageDropdown;
+        
         private SettingsManager settingsManager;
         private GameSettings currentSettings;
         private bool isInitializing = false;
@@ -71,6 +74,7 @@ namespace FPS.UI
             InitializeAudioUI();
             InitializeGameplayUI();
             InitializeAccessibilityUI();
+            InitializeLocalizationUI();
             
             isInitializing = false;
         }
@@ -172,6 +176,26 @@ namespace FPS.UI
             if (reduceMotionToggle != null) reduceMotionToggle.isOn = currentSettings.reduceMotion;
         }
         
+        private void InitializeLocalizationUI()
+        {
+            if (languageDropdown != null && FPS.Managers.LocalizationManager.Instance != null)
+            {
+                var languages = FPS.Managers.LocalizationManager.Instance.GetSupportedLanguages();
+                languageDropdown.options.Clear();
+                int selectedIndex = 0;
+                string currentLang = FPS.Managers.LocalizationManager.Instance.GetCurrentLanguage();
+                for (int i = 0; i < languages.Count; i++)
+                {
+                    var lang = languages[i];
+                    languageDropdown.options.Add(new TMP_Dropdown.OptionData(lang.displayName));
+                    if (lang.languageCode == currentLang)
+                        selectedIndex = i;
+                }
+                languageDropdown.value = selectedIndex;
+                languageDropdown.RefreshShownValue();
+            }
+        }
+        
         private void SetupListeners()
         {
             // Graphics listeners
@@ -240,6 +264,10 @@ namespace FPS.UI
             
             if (reduceMotionToggle != null)
                 reduceMotionToggle.onValueChanged.AddListener(OnReduceMotionChanged);
+            
+            // Localization listeners
+            if (languageDropdown != null)
+                languageDropdown.onValueChanged.AddListener(OnLanguageChanged);
             
             // Button listeners
             if (applyButton != null)
@@ -385,6 +413,17 @@ namespace FPS.UI
         {
             if (isInitializing) return;
             settingsManager.SetReduceMotion(value);
+        }
+        
+        private void OnLanguageChanged(int index)
+        {
+            if (isInitializing) return;
+            if (FPS.Managers.LocalizationManager.Instance == null) return;
+            var languages = FPS.Managers.LocalizationManager.Instance.GetSupportedLanguages();
+            if (index >= 0 && index < languages.Count)
+            {
+                FPS.Managers.LocalizationManager.Instance.SetLanguage(languages[index].languageCode);
+            }
         }
         
         #endregion
